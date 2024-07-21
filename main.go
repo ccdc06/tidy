@@ -10,11 +10,17 @@ import (
 	"strings"
 
 	"os"
+
+	"github.com/fatih/color"
 )
 
 func main() {
 	code := truemain()
-	fmt.Println("Execution complete. Press Enter to exit.")
+	if code == 0 {
+		color.Blue("Execution complete. Press Enter to exit.")
+	} else {
+		color.Yellow("Execution complete (error code %d). Press Enter to exit.", code)
+	}
 	ScanLine()
 	os.Exit(code)
 }
@@ -22,17 +28,17 @@ func main() {
 var scanner = bufio.NewScanner(os.Stdin)
 
 func truemain() int {
-	fmt.Println("(Press Ctrl+C to exit at any time)")
+	color.Blue("(Press Ctrl+C to exit at any time)")
 
 	answer := ReadYesNo("Download the lists of files and collections from https://github.com/ccdc06/metadata/tree/master?")
 	if !answer {
-		fmt.Println("Download cancelled")
+		color.Yellow("Download cancelled")
 		return 0
 	}
 
 	expected, err := DownloadFileList()
 	if err != nil {
-		fmt.Println(err.Error())
+		color.Red(err.Error())
 		return 1
 	}
 
@@ -43,13 +49,15 @@ func truemain() int {
 		collections = append(collections, key)
 	}
 
-	fmt.Println("Download complete")
-	fmt.Printf("List: %d files in %d collections\n", filesCount, len(collections))
+	color.Blue("Download complete")
+	color.Blue("List: %d files in %d collections", filesCount, len(collections))
+
+	Hr()
 
 	var rootDir string
 	var foundCollections []string
 	for {
-		rootDir = ReadDirectory(fmt.Sprintf("Enter the path to the directory where the downloaded collections (like '%s') are located:", collections[0]))
+		rootDir = ReadDirectory(fmt.Sprintf("Enter the path to the directory where the downloaded collections (like '%s') are located:", collections[0]), false)
 
 		for _, collection := range collections {
 			check := filepath.Join(rootDir, collection)
@@ -62,10 +70,10 @@ func truemain() int {
 		if len(foundCollections) != 0 {
 			break
 		}
-		fmt.Printf("No collection directories were found in '%s'\n", rootDir)
+		color.Yellow("No collection directories were found in '%s'", rootDir)
 	}
 
-	fmt.Printf("Collection directories found locally: %d\n", len(foundCollections))
+	color.Blue("Collection directories found locally: %d", len(foundCollections))
 
 	var found map[string][]string = make(map[string][]string)
 	for _, collection := range foundCollections {
@@ -108,13 +116,13 @@ func truemain() int {
 
 	if len(incompleteCollections) > 0 {
 		Hr()
-		fmt.Println("There are missing files in the following collections:")
+		color.Yellow("There are missing files in the following collections:")
 
 		for collection, count := range incompleteCollections {
 			if count == 1 {
-				fmt.Printf("%s: 1 missing file\n", collection)
+				color.Yellow("%s: 1 missing file", collection)
 			} else {
-				fmt.Printf("%s: %d missing files\n", collection, count)
+				color.Yellow("%s: %d missing files", collection, count)
 			}
 		}
 
@@ -122,39 +130,42 @@ func truemain() int {
 		if answer {
 			Hr()
 			for _, file := range missingFiles {
-				fmt.Printf("MISSING: %s\n", file)
+				color.Blue("MISSING: %s", file)
 			}
+			Hr()
 		}
 	}
 
 	if len(extraFiles) > 0 {
-		Hr()
 		done := false
 		for {
 			if done {
 				break
 			}
-			options := map[string]string{"s": "Show me the list of files then ask again", "d": "Permanently delete", "m": "Move to another folder", "n": "Nothing"}
+			options := map[string]string{"s": "Show me the list of files then ask again", "d": "Permanently delete", "m": "Move to another directory", "n": "Nothing"}
 
 			answer := ReadOptions(fmt.Sprintf("What would you like to do with the extra %d cbz files found?", len(extraFiles)), options)
 
 			switch answer {
 			case "d":
 				if ReadYesNo("This action can't be undone. Are you sure?") {
+					Hr()
 					for _, file := range extraFiles {
 						err := os.Remove(file)
 
 						if err != nil {
-							fmt.Printf("ERROR: %s (file: %s)\n", err, file)
+							color.Yellow("ERROR: %s (file: %s)", err, file)
 						} else {
-							fmt.Printf("DELETED: %s\n", file)
+							color.Blue("DELETED: %s", file)
 						}
 					}
+					Hr()
 					done = true
 				}
 
 			case "m":
-				dest := ReadDirectory("Enter the folder where you want to move the files:")
+				dest := ReadDirectory("Enter the directory where you want to move the files:", true)
+				Hr()
 				for cn, from := range extraFiles {
 					var err error
 
@@ -165,33 +176,38 @@ func truemain() int {
 					}
 
 					if err != nil {
-						fmt.Printf("ERROR: %s (file: %s)\n", err, from)
+						color.Yellow("ERROR: %s (file: %s)", err, from)
 						continue
 					}
 
 					err = os.Rename(from, to)
 
 					if err != nil {
-						fmt.Printf("ERROR: %s (file: %s)\n", err, from)
+						color.Yellow("ERROR: %s (file: %s)", err, from)
 					} else {
-						fmt.Printf("MOVED: %s\n", from)
+						color.Blue("MOVED: %s => %s", from, to)
 					}
 				}
+				Hr()
 				done = true
 
 			case "s":
+				Hr()
 				for _, file := range extraFiles {
-					fmt.Printf("EXTRA: %s\n", file)
+					color.Blue("EXTRA: %s", file)
 				}
+				Hr()
 
 			case "n":
+				Hr()
 				done = true
 			}
 		}
 	}
 
 	if len(extraFiles) == 0 && len(incompleteCollections) == 0 {
-		fmt.Printf("No missing or extra files were found. Your collections are up to date!")
+		color.Green("No missing or extra files were found. Your collections are up to date!")
+		Hr()
 	}
 
 	return 0
@@ -219,11 +235,14 @@ func ReadOptions(msg string, options map[string]string) string {
 	validAnswersText := strings.Join(validAnswers, "/")
 
 	for {
-		fmt.Printf("%s [%s]\n", msg, validAnswersText)
+		color.White("%s [%s]", msg, validAnswersText)
 		for option, desc := range options {
-			fmt.Printf("%s: %s\n", option, desc)
+			color.White("%s: %s", option, desc)
 		}
 		answer = strings.ToLower(ScanLine())
+		if len(answer) == 0 {
+			continue
+		}
 
 		if len(answer) == 1 {
 			_, ok := options[answer]
@@ -232,13 +251,13 @@ func ReadOptions(msg string, options map[string]string) string {
 			}
 		}
 
-		fmt.Printf("Valid answers: [%s]\n", validAnswersText)
+		color.White("Valid answers: [%s]\n", validAnswersText)
 	}
 }
 
 func ReadYesNo(msg string) bool {
 	for {
-		fmt.Printf("%s [y/n]\n", msg)
+		color.White("%s [y/n]\n", msg)
 		answer := strings.ToLower(ScanLine())
 
 		switch answer {
@@ -248,29 +267,49 @@ func ReadYesNo(msg string) bool {
 			return false
 		}
 
-		fmt.Println("Valid answers: y, n, yes, no")
+		color.White("Valid answers: y, n, yes, no")
 	}
 }
 
-func ReadDirectory(msg string) string {
+func ReadDirectory(msg string, tryCreate bool) string {
+	firstLoop := true
+
 	for {
-		fmt.Println(msg)
+		color.White(msg)
+		if tryCreate && firstLoop {
+			color.White("(If the directory does not exist, it will be created)")
+		}
+		firstLoop = false
+
 		answer := ScanLine()
+		if len(answer) == 0 {
+			continue
+		}
 
 		stat, err := os.Stat(answer)
 
 		if os.IsNotExist(err) {
-			fmt.Println("Directory does no exists")
+			if tryCreate {
+				err = os.MkdirAll(answer, 0777)
+				if err != nil {
+					color.Yellow(err.Error())
+					continue
+				}
+				color.Blue("directory %s created", answer)
+				return answer
+			}
+
+			color.Yellow("Directory does no exists")
 			continue
 		}
 
 		if err != nil {
-			fmt.Println(err)
+			color.Yellow(err.Error())
 			continue
 		}
 
 		if !stat.IsDir() {
-			fmt.Println("This is not a directory")
+			color.Yellow("This is not a directory")
 			continue
 		}
 
@@ -283,7 +322,7 @@ func DownloadFileList() (map[string][]string, error) {
 
 	url := `https://raw.githubusercontent.com/ccdc06/metadata/master/indexes/list.csv`
 
-	fmt.Println("Downloading list of files")
+	color.Blue("Downloading list of files")
 	response, err := http.Get(url)
 	if err != nil {
 		return ret, err
@@ -341,7 +380,7 @@ func DirExists(dir string) bool {
 }
 
 func Hr() {
-	fmt.Println("-----------------------------------")
+	color.White("-----------------------------------")
 }
 
 func ScanLine() string {
