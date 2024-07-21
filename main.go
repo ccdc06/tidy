@@ -17,7 +17,7 @@ import (
 func main() {
 	code := truemain()
 	if code == 0 {
-		color.Blue("Execution complete. Press Enter to exit.")
+		color.Green("Execution complete. Press Enter to exit.")
 	} else {
 		color.Yellow("Execution complete (error code %d). Press Enter to exit.", code)
 	}
@@ -28,7 +28,7 @@ func main() {
 var scanner = bufio.NewScanner(os.Stdin)
 
 func truemain() int {
-	color.Blue("(Press Ctrl+C to exit at any time)")
+	color.Green("(Press Ctrl+C to exit at any time)")
 
 	answer := ReadYesNo("Download the lists of files and collections from https://github.com/ccdc06/metadata/tree/master?")
 	if !answer {
@@ -49,8 +49,8 @@ func truemain() int {
 		collections = append(collections, key)
 	}
 
-	color.Blue("Download complete")
-	color.Blue("List: %d files in %d collections", filesCount, len(collections))
+	color.Green("Download complete")
+	color.Green("List: %d files in %d collections", filesCount, len(collections))
 
 	Hr()
 
@@ -73,7 +73,7 @@ func truemain() int {
 		color.Yellow("No collection directories were found in '%s'", rootDir)
 	}
 
-	color.Blue("Collection directories found locally: %d", len(foundCollections))
+	color.Green("Collection directories found locally: %d", len(foundCollections))
 
 	var found map[string][]string = make(map[string][]string)
 	for _, collection := range foundCollections {
@@ -91,6 +91,7 @@ func truemain() int {
 	}
 
 	var extraFiles map[string]string = make(map[string]string)
+	var extraCollections map[string]int = make(map[string]int)
 	var incompleteCollections map[string]int = make(map[string]int)
 	var missingFiles []string
 
@@ -111,40 +112,51 @@ func truemain() int {
 		for _, n := range extra {
 			cn := collection + "/" + n
 			extraFiles[cn] = filepath.Join(rootDir, collection, n)
+			extraCollections[collection]++
 		}
 	}
 
+	Hr()
+
 	if len(incompleteCollections) > 0 {
-		Hr()
 		color.Yellow("There are missing files in the following collections:")
 
 		for collection, count := range incompleteCollections {
-			if count == 1 {
-				color.Yellow("%s: 1 missing file", collection)
-			} else {
-				color.Yellow("%s: %d missing files", collection, count)
-			}
+			color.Yellow("%s: %d of %d galleries (%d missing)", collection, len(expected[collection])-count, len(expected[collection]), count)
 		}
+		Hr()
 
 		answer := ReadYesNo("Would you like to see the list of missing files?")
 		if answer {
 			Hr()
 			for _, file := range missingFiles {
-				color.Blue("MISSING: %s", file)
+				color.Yellow("MISSING: %s", file)
 			}
-			Hr()
 		}
+	} else {
+		color.Green("No missing files found")
 	}
 
+	Hr()
 	if len(extraFiles) > 0 {
+		color.Yellow("There are extra galleries in the following collections:")
+		for collection, count := range extraCollections {
+			if count == 1 {
+				color.Yellow("%s (1 extra gallery)", collection)
+			} else {
+				color.Yellow("%s (%d extra galleries)", collection, count)
+			}
+		}
+
 		done := false
 		for {
 			if done {
 				break
 			}
-			options := map[string]string{"s": "Show me the list of files then ask again", "d": "Permanently delete", "m": "Move to another directory", "n": "Nothing"}
+			Hr()
+			options := map[string]string{"s": "Show me the list of galleries then ask again", "d": "Permanently delete", "m": "Move to another directory", "n": "Nothing"}
 
-			answer := ReadOptions(fmt.Sprintf("What would you like to do with the extra %d cbz files found?", len(extraFiles)), options)
+			answer := ReadOptions(fmt.Sprintf("What would you like to do with the extra %d cbz file(s) found?", len(extraFiles)), options)
 
 			switch answer {
 			case "d":
@@ -156,10 +168,9 @@ func truemain() int {
 						if err != nil {
 							color.Yellow("ERROR: %s (file: %s)", err, file)
 						} else {
-							color.Blue("DELETED: %s", file)
+							color.Green("DELETED: %s", file)
 						}
 					}
-					Hr()
 					done = true
 				}
 
@@ -185,29 +196,30 @@ func truemain() int {
 					if err != nil {
 						color.Yellow("ERROR: %s (file: %s)", err, from)
 					} else {
-						color.Blue("MOVED: %s => %s", from, to)
+						color.Green("MOVED: %s => %s", from, to)
 					}
 				}
-				Hr()
 				done = true
 
 			case "s":
 				Hr()
 				for _, file := range extraFiles {
-					color.Blue("EXTRA: %s", file)
+					color.Yellow("EXTRA: %s", file)
 				}
-				Hr()
 
 			case "n":
 				Hr()
 				done = true
 			}
 		}
+		Hr()
+	} else {
+		color.Green("No extra files found")
+		Hr()
 	}
 
 	if len(extraFiles) == 0 && len(incompleteCollections) == 0 {
-		color.Green("No missing or extra files were found. Your collections are up to date!")
-		Hr()
+		color.Green("Your collections are up to date!")
 	}
 
 	return 0
@@ -295,7 +307,7 @@ func ReadDirectory(msg string, tryCreate bool) string {
 					color.Yellow(err.Error())
 					continue
 				}
-				color.Blue("directory %s created", answer)
+				color.Green("directory %s created", answer)
 				return answer
 			}
 
@@ -322,7 +334,7 @@ func DownloadFileList() (map[string][]string, error) {
 
 	url := `https://raw.githubusercontent.com/ccdc06/metadata/master/indexes/list.csv`
 
-	color.Blue("Downloading list of files")
+	color.Green("Downloading list of files")
 	response, err := http.Get(url)
 	if err != nil {
 		return ret, err
