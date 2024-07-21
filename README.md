@@ -37,3 +37,13 @@ D:\extra\
     koharu.to_14001-15000\
         [Amasora Taichi] Rocker Girl Strapped for Cash.renamed.cbz
 ```
+
+# Precompiled binaries
+
+Each [release](https://github.com/ccdc06/tidy/releases) includes precompiled binaries for Windows, Linux, MacOS for both amd64 and arm64 architectures.
+
+Alternatively, if you have a go environment properly configured, you can run the latest version of the tool with:
+
+```sh
+go run github.com/ccdc06/tidy@master
+```
