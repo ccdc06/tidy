@@ -1,3 +1,4 @@
 .vscode
 tidy.exe
 tidy
+__debug_bin*.exe
